@@ -65,6 +65,7 @@
         line-height: 1.5;
       }
     </style>
+    <script src="yrSqliteViewer-resize.js" type="module"></script>
   </head>
   <body>
     <div class="yrControlPanel">
@@ -95,7 +96,6 @@
         id="restoreSession"
         class="yrFileInput"
         accept=".yrslv"
-        onchange="restoreSession()"
       />
       <label for="restoreSession" class="yrButton yrGreenButton">
         Restore Session
@@ -246,80 +246,110 @@
       </div>
     </div>
 
-    <script>
-      let pyodideInstance = null;
-      let queryHistory = [];
-      let queryInterfaceCount = 0;
-      let currentDatabaseName = "";
-      let tableNames = [];
-      let isSessionSaved = true;
-      let editors = {};
+    <script type="module">
+        // Import the resize functions at the top of your script
+        import {
+            adjustFontSize,
+            adjustAllTablesFontSize,
+            setAllTablesFontSize,
+            adjustAllQueryInterfacesFontSize,
+            setAllQueryInterfacesFontSize,
+            autoResize
+        } from './yrSqliteViewer-resize.js';
 
-      window.onbeforeunload = function (e) {
-        if (queryHistory.length > 0 && !isSessionSaved) {
-          e.preventDefault();
-          e.returnValue = "";
-          return "";
-        }
-      };
+        // Make the imported functions available to the global scope
+        window.adjustFontSize = adjustFontSize;
+        window.adjustAllTablesFontSize = adjustAllTablesFontSize;
+        window.setAllTablesFontSize = setAllTablesFontSize;
+        window.adjustAllQueryInterfacesFontSize = adjustAllQueryInterfacesFontSize;
+        window.setAllQueryInterfacesFontSize = setAllQueryInterfacesFontSize;
+        window.autoResize = autoResize;
 
-      async function loadDatabase(file, isRestoring = false) {
-        console.log(`starting: loadDatabase(${file})`);
-        if (!file) {
-          document.getElementById("output1").innerHTML =
-            '<div class="yrErrorMessage">Please select a file.</div>';
-          return;
-        }
+        // Make other functions globally available
+        window.restoreSession = restoreSession;
+        window.loadDatabase = loadDatabase;
+        window.runQuery = runQuery;
+        window.clearSession = clearSession;
+        window.saveSession = saveSession;
+        window.showTableStructure = showTableStructure;
+        window.showTableData = showTableData;
+        window.showAllTablesData = showAllTablesData;
+        window.showAllTablesStructure = showAllTablesStructure;
+        window.initializeCodeMirror = initializeCodeMirror;
 
-        // Show loading message and hide no file message
-        document.getElementById("noFileMessage").style.display = "none";
-        document.getElementById("loadingMessage").style.display = "block";
+        let pyodideInstance = null;
+        let queryHistory = [];
+        let queryInterfaceCount = 0;
+        let currentDatabaseName = "";
+        let tableNames = [];
+        let isSessionSaved = true;
+        let editors = {};
 
-        try {
-          // Skip creating initial interface if we're restoring a session
-          if (!isRestoring) {
-            // Clear existing query interfaces and reset counter
-            document.getElementById("queryInterfaces").innerHTML = `
-              <div class="yrQueryInterface" data-base-font="1">
-                <div class="yrFlexContainer">
-                  <h3>SQL Command 1</h3>
-                  <div class="yrFontControl">
-                    <button onclick="adjustFontSize('query_interface_1', -0.1)" class="yrFontButton">A-</button>
-                    <button onclick="adjustFontSize('query_interface_1', 0.1)" class="yrFontButton">A+</button>
-                  </div>
-                </div>
-                <div id="sqlQuery1" class="yrQueryTextarea"></div>
-                <br />
-                <button onclick="runQuery(1)" class="yrButton yrGreyButton">Run Query</button>
-                <div id="output1" class="yrOutputContainer"></div>
-              </div>
-            `;
-            queryInterfaceCount = 0;
-            // Initialize CodeMirror for the first interface
-            initializeCodeMirror('sqlQuery1');
-          }
+        window.onbeforeunload = function (e) {
+            if (queryHistory.length > 0 && !isSessionSaved) {
+                e.preventDefault();
+                e.returnValue = "";
+                return "";
+            }
+        };
 
-          // Display filename
-          document.getElementById("selectedFileName").textContent = file.name;
+        async function loadDatabase(file, isRestoring = false) {
+            console.log(`starting: loadDatabase(${file})`);
+            if (!file) {
+                document.getElementById("output1").innerHTML =
+                    '<div class="yrErrorMessage">Please select a file.</div>';
+                return;
+            }
 
-          // Show the query interfaces container
-          document.getElementById("queryInterfaces").style.display = "flex";
+            // Show loading message and hide no file message
+            document.getElementById("noFileMessage").style.display = "none";
+            document.getElementById("loadingMessage").style.display = "block";
 
-          // Initialize Pyodide if not already initialized
-          if (!pyodideInstance) {
-            pyodideInstance = await loadPyodide();
-            await pyodideInstance.loadPackage("sqlite3");
-          }
+            try {
+                // Skip creating initial interface if we're restoring a session
+                if (!isRestoring) {
+                    // Clear existing query interfaces and reset counter
+                    document.getElementById("queryInterfaces").innerHTML = `
+                        <div class="yrQueryInterface" data-base-font="1">
+                            <div class="yrFlexContainer">
+                                <h3>SQL Command 1</h3>
+                                <div class="yrFontControl">
+                                    <button onclick="adjustFontSize('query_interface_1', -0.1)" class="yrFontButton">A-</button>
+                                    <button onclick="adjustFontSize('query_interface_1', 0.1)" class="yrFontButton">A+</button>
+                                </div>
+                            </div>
+                            <div id="sqlQuery1" class="yrQueryTextarea"></div>
+                            <br />
+                            <button onclick="runQuery(1)" class="yrButton yrGreyButton">Run Query</button>
+                            <div id="output1" class="yrOutputContainer"></div>
+                        </div>
+                    `;
+                    queryInterfaceCount = 0;
+                    // Initialize CodeMirror for the first interface
+                    initializeCodeMirror('sqlQuery1');
+                }
 
-          currentDatabaseName = file.name;
+                // Display filename
+                document.getElementById("selectedFileName").textContent = file.name;
 
-          // Read file as an ArrayBuffer and pass to Pyodide
-          const arrayBuffer = await file.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          pyodideInstance.FS.writeFile("database.sqlite", bytes);
+                // Show the query interfaces container
+                document.getElementById("queryInterfaces").style.display = "flex";
 
-          // Run Python code in Pyodide to check tables and their schemas
-          const result = await pyodideInstance.runPythonAsync(`
+                // Initialize Pyodide if not already initialized
+                if (!pyodideInstance) {
+                    pyodideInstance = await loadPyodide();
+                    await pyodideInstance.loadPackage("sqlite3");
+                }
+
+                currentDatabaseName = file.name;
+
+                // Read file as an ArrayBuffer and pass to Pyodide
+                const arrayBuffer = await file.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                pyodideInstance.FS.writeFile("database.sqlite", bytes);
+
+                // Run Python code in Pyodide to check tables and their schemas
+                const result = await pyodideInstance.runPythonAsync(`
 import sqlite3
 import json
 
@@ -344,125 +374,73 @@ for table in tables:
     ]
 
 json.dumps({"tables": table_info})
-          `);
+                `);
 
-          const data = JSON.parse(result);
-          tableNames = Object.keys(data.tables);
+                const data = JSON.parse(result);
+                tableNames = Object.keys(data.tables);
 
-          // YR - clear the table list
-          document.getElementById("tableList").innerHTML = "";
+                // YR - clear the table list
+                document.getElementById("tableList").innerHTML = "";
 
-          // Display tables with buttons
-          let tableListHtml = "";
-          Object.entries(data.tables).forEach(([tableName, columns]) => {
-            const tableCard = document.createElement("div");
-            tableCard.className = "yrTableCard";
-            tableCard.setAttribute("data-base-font", "1");
-            tableCard.innerHTML = `
-              <div class="yrFlexContainer">
-                <div class="yrTableName">Table: ${tableName}</div>
-                <div class="yrFontControl">
-                  <button onclick="adjustFontSize('${tableName}_card', -0.1)" class="yrFontButton">A-</button>
-                  <button onclick="adjustFontSize('${tableName}_card', 0.1)" class="yrFontButton">A+</button>
-                </div>
-              </div>
-              <div class="yrTableButtons">
-                <button 
-                  onclick="showTableStructure('${tableName}', ${JSON.stringify(
-              columns
-            ).replace(/"/g, "&quot;")})"
-                  class="yrButton yrGreyButton"
-                >Show Structure</button>
-                <button 
-                  onclick="showTableData('${tableName}')"
-                  class="yrButton yrGreyButton"
-                >Show Rows</button>
-              </div>
-              <div id="${tableName}_info" class="yrTableInfo"></div>
-            `;
-            document.getElementById("tableList").appendChild(tableCard);
-          });
+                // Display tables with buttons
+                let tableListHtml = "";
+                Object.entries(data.tables).forEach(([tableName, columns]) => {
+                    const tableCard = document.createElement("div");
+                    tableCard.className = "yrTableCard";
+                    tableCard.setAttribute("data-base-font", "1");
+                    tableCard.innerHTML = `
+                        <div class="yrFlexContainer">
+                            <div class="yrTableName">Table: ${tableName}</div>
+                            <div class="yrFontControl">
+                                <button onclick="adjustFontSize('${tableName}_card', -0.1)" class="yrFontButton">A-</button>
+                                <button onclick="adjustFontSize('${tableName}_card', 0.1)" class="yrFontButton">A+</button>
+                            </div>
+                        </div>
+                        <div class="yrTableButtons">
+                            <button 
+                                onclick="showTableStructure('${tableName}', ${JSON.stringify(
+                            columns
+                        ).replace(/"/g, "&quot;")})"
+                                class="yrButton yrGreyButton"
+                            >Show Structure</button>
+                            <button 
+                                onclick="showTableData('${tableName}')"
+                                class="yrButton yrGreyButton"
+                            >Show Rows</button>
+                        </div>
+                        <div id="${tableName}_info" class="yrTableInfo"></div>
+                    `;
+                    document.getElementById("tableList").appendChild(tableCard);
+                });
 
-          // Show structure for all tables by default
-          Object.entries(data.tables).forEach(([tableName, columns]) => {
-            showTableStructure(tableName, columns);
-          });
+                // Show structure for all tables by default
+                Object.entries(data.tables).forEach(([tableName, columns]) => {
+                    showTableStructure(tableName, columns);
+                });
 
-          // Clear the "no file" message when loading a database
-          document.getElementById("noFileMessage").style.display = "none";
-          document.getElementById("sqlCommandsHeader").style.display = "block";
-        } finally {
-          // Hide loading message when done (whether successful or not)
-          document.getElementById("loadingMessage").style.display = "none";
-        }
-      }
-
-      /*
-      function autoResize(textarea) {
-        console.log("starting: autoResize(textarea)");
-        textarea.style.width = "auto"; // Reset height to recalculate
-        textarea.style.width = textarea.scrollWidth + "px";
-        textarea.style.height = "auto"; // Reset height to recalculate
-        textarea.style.height = textarea.scrollHeight + "px";
-      }
-      */
-
-      function autoResize(textarea) {
-        console.log("starting: autoResize(textarea)");
-        const EXTRA_SPACE = 50; // Extra pixels to add for width
-        const WIDTH_THRESHOLD = 30; // Minimum change in width before adjusting
-        const MIN_WIDTH = 100;
-        const MAX_WIDTH = Math.min(800, window.innerWidth - 40);
-
-        // Create hidden div for measurement if it doesn't exist
-        let helper = document.getElementById("textarea-helper");
-        if (!helper) {
-          helper = document.createElement("div");
-          helper.id = "textarea-helper";
-          helper.style.position = "absolute";
-          helper.style.visibility = "hidden";
-          helper.style.whiteSpace = "pre";
-          document.body.appendChild(helper);
+                // Clear the "no file" message when loading a database
+                document.getElementById("noFileMessage").style.display = "none";
+                document.getElementById("sqlCommandsHeader").style.display = "block";
+            } finally {
+                // Hide loading message when done (whether successful or not)
+                document.getElementById("loadingMessage").style.display = "none";
+            }
         }
 
-        // Copy relevant styles
-        const styles = window.getComputedStyle(textarea);
-        helper.style.fontSize = styles.fontSize;
-        helper.style.fontFamily = styles.fontFamily;
-        helper.style.padding = styles.padding;
-        helper.style.border = styles.border;
+        async function runQuery(interfaceId) {
+            console.log(`starting: runQuery(interfaceId=${interfaceId})`);
+            if (!pyodideInstance) return;
 
-        // Measure content
-        helper.textContent = textarea.value;
-        const newWidth = helper.offsetWidth + EXTRA_SPACE;
-        const currentWidth =
-          parseInt(textarea.style.width) || textarea.offsetWidth;
+            const editor = editors[`sqlQuery${interfaceId}`];
+            const outputElement = document.getElementById(`output${interfaceId}`);
+            const query = editor.getValue();
 
-        // Only adjust width if change is significant
-        if (Math.abs(newWidth - currentWidth) > WIDTH_THRESHOLD) {
-          textarea.style.width =
-            Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)) + "px";
-        }
+            // If query is empty, don't proceed
+            if (!query.trim()) return;
 
-        // Adjust height
-        textarea.style.height = "auto";
-        textarea.style.height = textarea.scrollHeight + "px";
-      }
-
-      async function runQuery(interfaceId) {
-        console.log(`starting: runQuery(interfaceId=${interfaceId})`);
-        if (!pyodideInstance) return;
-
-        const editor = editors[`sqlQuery${interfaceId}`];
-        const outputElement = document.getElementById(`output${interfaceId}`);
-        const query = editor.getValue();
-
-        // If query is empty, don't proceed
-        if (!query.trim()) return;
-
-        try {
-          const result = await pyodideInstance.runPythonAsync(
-            `
+            try {
+                const result = await pyodideInstance.runPythonAsync(
+                    `
 import sqlite3
 import json
 
@@ -472,611 +450,534 @@ cursor.execute("""${query}""")
 columns = [description[0] for description in cursor.description]
 rows = cursor.fetchall()
 json.dumps({"columns": columns, "rows": rows})
-          `.trim()
-          );
-
-          const data = JSON.parse(result);
-
-          // Create table HTML
-          let tableHtml = '<table border="1"><tr>';
-          data.columns.forEach((col) => {
-            tableHtml += `<th>${col}</th>`;
-          });
-          tableHtml += "</tr>";
-
-          data.rows.forEach((row) => {
-            tableHtml += "<tr>";
-            row.forEach((cell) => {
-              tableHtml += `<td>${cell}</td>`;
-            });
-            tableHtml += "</tr>";
-          });
-          tableHtml += "</table>";
-
-          // Update or add to history
-          const historyIndex = interfaceId - 1;
-          const historyEntry = {
-            query: query,
-            timestamp: new Date().toISOString(),
-            results: data,
-          };
-
-          if (historyIndex < queryHistory.length) {
-            // Update existing entry
-            queryHistory[historyIndex] = historyEntry;
-          } else {
-            // Add new entry
-            queryHistory.push(historyEntry);
-          }
-          isSessionSaved = false;
-
-          outputElement.innerHTML = tableHtml;
-
-          // Check if there's already a blank query interface at the end
-          const lastInterface = document.querySelector(
-            ".yrQueryInterface:last-child"
-          );
-          const lastTextarea =
-            lastInterface.querySelector(".CodeMirror").CodeMirror;
-
-          // Only add a new interface if the last one isn't empty
-          if (lastTextarea.getValue().trim() !== "") {
-            // Count existing interfaces to determine next number
-            const existingInterfaces =
-              document.getElementsByClassName("yrQueryInterface");
-            const newInterfaceId = existingInterfaces.length + 1;
-
-            const newInterface = document.createElement("div");
-            newInterface.className = "yrQueryInterface";
-            newInterface.setAttribute("data-base-font", "1");
-            newInterface.innerHTML = `
-              <div class="yrFlexContainer">
-                <h3>SQL Command ${newInterfaceId}</h3>
-                <div class="yrFontControl">
-                  <button onclick="adjustFontSize('query_interface_${newInterfaceId}', -0.1)" class="yrFontButton">A-</button>
-                  <button onclick="adjustFontSize('query_interface_${newInterfaceId}', 0.1)" class="yrFontButton">A+</button>
-                </div>
-              </div>
-              <div id="sqlQuery${newInterfaceId}" class="yrQueryTextarea"></div>
-              <br />
-              <button onclick="runQuery(${newInterfaceId})" class="yrButton yrGreyButton">Run Query</button>
-              <div id="output${newInterfaceId}" class="yrOutputContainer"></div>
-            `;
-            document
-              .getElementById("queryInterfaces")
-              .appendChild(newInterface);
-            initializeCodeMirror(`sqlQuery${newInterfaceId}`);
-            queryInterfaceCount = newInterfaceId; // Update the counter to match
-          }
-        } catch (error) {
-          outputElement.innerHTML = `<div class="yrErrorMessage">Error executing query: ${error.message}</div>`;
-        }
-      }
-
-      function formatQueryResultsAsText(query, results) {
-        console.log("starting: formatQueryResultsAsText(query, results)");
-        let output = `Query: ${query}\n\n`;
-
-        // Handle case where query hasn't been run yet
-        if (!results) {
-          return output + "(Query not yet executed)\n\n";
-        }
-
-        // Find max width for each column
-        const colWidths = results.columns.map((col, i) => {
-          let maxWidth = col.length;
-          results.rows.forEach((row) => {
-            const cellWidth = String(row[i]).length;
-            maxWidth = Math.max(maxWidth, cellWidth);
-          });
-          return maxWidth;
-        });
-
-        // Header
-        output +=
-          results.columns
-            .map((col, i) => col.padEnd(colWidths[i]))
-            .join(" | ") + "\n";
-
-        // Separator
-        output += colWidths.map((w) => "-".repeat(w)).join("-+-") + "\n";
-
-        // Rows
-        results.rows.forEach((row) => {
-          output +=
-            row
-              .map((cell, i) => String(cell).padEnd(colWidths[i]))
-              .join(" | ") + "\n";
-        });
-
-        return output + "\n";
-      }
-
-      function clearSession() {
-        console.log("starting: clearSession()");
-        if (
-          confirm(
-            "Are you sure you want to clear the current session? This will remove all queries and results."
-          )
-        ) {
-          queryHistory = [];
-          isSessionSaved = true;
-          queryInterfaceCount = 0;
-          currentDatabaseName = "";
-          tableNames = [];
-
-          document.getElementById("tableList").innerHTML = "";
-          document.getElementById("queryInterfaces").innerHTML = `
-            <div class="yrQueryInterface" data-base-font="1">
-              <div class="yrFlexContainer">
-                <h3>SQL Command 1</h3>
-                <div class="yrFontControl">
-                  <button onclick="adjustFontSize('query_interface_1', -0.1)" class="yrFontButton">A-</button>
-                  <button onclick="adjustFontSize('query_interface_1', 0.1)" class="yrFontButton">A+</button>
-                </div>
-              </div>
-              <textarea
-                id="sqlQuery1"
-                rows="3"
-                placeholder="Enter SQL query here..."
-                class="yrQueryTextarea"
-                oninput="autoResize(this)"
-              ></textarea>
-              <br />
-              <button onclick="runQuery(1)" class="yrButton yrGreyButton">Run Query</button>
-              <div id="output1" class="yrOutputContainer"></div>
-            </div>
-          `;
-          document.getElementById("selectedFileName").textContent =
-            "no file chosen yet";
-          document.getElementById("noFileMessage").style.display = "block";
-          initializeCodeMirror("sqlQuery1");
-        }
-      }
-
-      async function saveSession() {
-        console.log("starting: async function saveSession()");
-        const baseFilename = prompt(
-          "Enter filename (without extension)\nFile will be saved as a .yrslv file:",
-          "yrSqliteViewerSession"
-        );
-
-        if (baseFilename) {
-          const zip = new JSZip();
-
-          // Update queryHistory with current state of all editors
-          const queryInterfaces =
-            document.getElementsByClassName("yrQueryInterface");
-          let updatedHistory = [];
-
-          Array.from(queryInterfaces).forEach((interface, index) => {
-            const interfaceId = index + 1;
-            const editor = editors[`sqlQuery${interfaceId}`];
-            if (editor) {
-              const currentQuery = editor.getValue().trim();
-              if (currentQuery) {
-                // Only save non-empty queries
-                let historyEntry;
-                // Try to find existing history entry
-                const existingEntry = queryHistory[index];
-                if (existingEntry) {
-                  historyEntry = {
-                    ...existingEntry,
-                    query: currentQuery,
-                  };
-                } else {
-                  historyEntry = {
-                    query: currentQuery,
-                    timestamp: new Date().toISOString(),
-                    results: null, // No results if query hasn't been run
-                  };
-                }
-                updatedHistory.push(historyEntry);
-              }
-            }
-          });
-
-          // Replace queryHistory with updated version
-          queryHistory = updatedHistory;
-
-          // Prepare JSON content
-          const jsonContent = JSON.stringify(
-            {
-              jsonFormatVersion: "0.1",
-              yrSqliteViewerVersion: "0.1",
-              databaseName: currentDatabaseName,
-              queries: queryHistory,
-            },
-            null,
-            2
-          );
-          zip.file(`${baseFilename}.json`, jsonContent);
-
-          // Prepare TXT content
-          let textContent = `Database: ${currentDatabaseName}\n\n`;
-          textContent += `Tables:\n${tableNames.join("\n")}\n\n`;
-          textContent += "Query Results:\n\n";
-
-          queryHistory.forEach((item, index) => {
-            textContent += `--- Query ${index + 1} ---\n`;
-            textContent += formatQueryResultsAsText(item.query, item.results);
-          });
-          zip.file(`${baseFilename}.txt`, textContent);
-
-          // Add the SQLite database file to the ZIP
-          const dbBytes = pyodideInstance.FS.readFile("database.sqlite");
-          zip.file(`${currentDatabaseName}`, dbBytes);
-
-          // Generate and download ZIP file using saveAs
-          const zipBlob = await zip.generateAsync({ type: "blob" });
-          saveAs(zipBlob, `${baseFilename}.yrslv`);
-
-          isSessionSaved = true;
-        }
-      }
-
-      function showTableStructure(tableName, columns) {
-        console.log(
-          `starting: function showTableStructure(tableName=${tableName}, columns=${columns})`
-        );
-        const infoDiv = document.getElementById(`${tableName}_info`);
-
-        let structureHtml = `
-          <div class="yrTableStructure">
-            <table class="yrDataTable">
-              <tr>
-                <th>Column</th>
-                <th>Type</th>
-              </tr>`;
-
-        columns.forEach((col) => {
-          structureHtml += `
-            <tr>
-              <td>${col.name}</td>
-              <td>${col.type}</td>
-            </tr>`;
-        });
-
-        structureHtml += `</table></div>`;
-        infoDiv.innerHTML = structureHtml;
-        infoDiv.style.display = "block";
-      }
-
-      async function showTableData(tableName) {
-        console.log("starting: async function showTableData(tableName)");
-        const infoDiv = document.getElementById(`${tableName}_info`);
-        try {
-          const result = await pyodideInstance.runPythonAsync(`
-            import sqlite3
-            import json
-
-            conn = sqlite3.connect("database.sqlite")
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM '" + "${tableName}" + "'")
-            columns = [description[0] for description in cursor.description]
-            rows = cursor.fetchall()
-            json.dumps({"columns": columns, "rows": rows})
-          `);
-
-          const data = JSON.parse(result);
-
-          let tableHtml = `
-            <div class="yrScrollContainer">
-              <table class="yrDataTable">
-                <tr>`;
-
-          data.columns.forEach((col) => {
-            tableHtml += `<th>${col}</th>`;
-          });
-
-          tableHtml += `</tr>`;
-
-          data.rows.forEach((row) => {
-            tableHtml += `<tr>`;
-            row.forEach((cell) => {
-              tableHtml += `<td>${cell}</td>`;
-            });
-            tableHtml += `</tr>`;
-          });
-
-          tableHtml += `</table></div>`;
-          infoDiv.innerHTML = tableHtml;
-          infoDiv.style.display = "block";
-        } catch (error) {
-          infoDiv.innerHTML = `<div class="yrErrorMessage">Error loading table data: ${error.message}</div>`;
-          infoDiv.style.display = "block";
-        }
-      }
-
-      function adjustFontSize(elementId, delta) {
-        console.log("starting: function adjustFontSize(elementId, delta)");
-        let element;
-        if (elementId.includes("query_interface_")) {
-          const interfaceNumber = elementId.split("_").pop();
-          const editor = editors[`sqlQuery${interfaceNumber}`];
-          if (editor) {
-            const wrapper = editor.getWrapperElement();
-            let baseFontSize =
-              parseFloat(wrapper.getAttribute("data-base-font")) || 1;
-            baseFontSize = Math.max(0.5, Math.min(2, baseFontSize + delta));
-            wrapper.setAttribute("data-base-font", baseFontSize);
-            wrapper.style.fontSize = `${baseFontSize}em`;
-          }
-        } else if (elementId.includes("_card")) {
-          // For table cards
-          const tableName = elementId.replace("_card", "");
-          element = Array.from(
-            document.getElementsByClassName("yrTableCard")
-          ).find(
-            (card) =>
-              card.querySelector(".yrTableName").textContent ===
-              `Table: ${tableName}`
-          );
-        }
-
-        if (!element) return;
-
-        let baseFontSize =
-          parseFloat(element.getAttribute("data-base-font")) || 1;
-        baseFontSize = Math.max(0.5, Math.min(2, baseFontSize + delta)); // Limit between 0.5 and 2
-
-        element.setAttribute("data-base-font", baseFontSize);
-        element.style.fontSize = `${baseFontSize}em`;
-      }
-
-      function adjustAllTablesFontSize(delta) {
-        console.log("starting: function adjustAllTablesFontSize(delta)");
-        const tableCards = document.getElementsByClassName("yrTableCard");
-        Array.from(tableCards).forEach((card) => {
-          let baseFontSize =
-            parseFloat(card.getAttribute("data-base-font")) || 1;
-          baseFontSize = Math.max(0.5, Math.min(3, baseFontSize + delta));
-          card.setAttribute("data-base-font", baseFontSize);
-          card.style.fontSize = `${baseFontSize}em`;
-        });
-      }
-
-      function setAllTablesFontSize(size) {
-        console.log("starting: function setAllTablesFontSize(size)");
-        const tableCards = document.getElementsByClassName("yrTableCard");
-        const newSize = Math.max(0.5, Math.min(3, parseFloat(size)));
-        Array.from(tableCards).forEach((card) => {
-          card.setAttribute("data-base-font", newSize);
-          card.style.fontSize = `${newSize}em`;
-        });
-      }
-
-      function adjustAllQueryInterfacesFontSize(delta) {
-        console.log(
-          "starting: function adjustAllQueryInterfacesFontSize(delta)"
-        );
-        const queryInterfaces =
-          document.getElementsByClassName("yrQueryInterface");
-        Array.from(queryInterfaces).forEach((interface) => {
-          let baseFontSize =
-            parseFloat(interface.getAttribute("data-base-font")) || 1;
-          baseFontSize = Math.max(0.5, Math.min(3, baseFontSize + delta));
-          interface.setAttribute("data-base-font", baseFontSize);
-          interface.style.fontSize = `${baseFontSize}em`;
-        });
-      }
-
-      function setAllQueryInterfacesFontSize(size) {
-        console.log("starting: function setAllQueryInterfacesFontSize(size)");
-        const queryInterfaces =
-          document.getElementsByClassName("yrQueryInterface");
-        const newSize = Math.max(0.5, Math.min(3, parseFloat(size)));
-        Array.from(queryInterfaces).forEach((interface) => {
-          interface.setAttribute("data-base-font", newSize);
-          interface.style.fontSize = `${newSize}em`;
-        });
-      }
-
-      async function restoreSession() {
-        console.log("starting: async function restoreSession()");
-        const fileInput = document.getElementById("restoreSession");
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        try {
-          // Read the zip file
-          const zipData = await file.arrayBuffer();
-          const zip = await JSZip.loadAsync(zipData);
-
-          // Find and parse the JSON file
-          const jsonFile = Object.values(zip.files).find((file) =>
-            file.name.endsWith(".json")
-          );
-          if (!jsonFile) throw new Error("No JSON file found in the archive");
-
-          const jsonContent = await jsonFile.async("string");
-          const sessionData = JSON.parse(jsonContent);
-
-          // Verify format version
-          if (sessionData.jsonFormatVersion !== "0.1") {
-            throw new Error("Incompatible session format version");
-          }
-
-          // Find and extract the database file
-          const dbFile = zip.files[sessionData.databaseName];
-          if (!dbFile) throw new Error("Database file not found in archive");
-
-          // Write the database file to Pyodide's virtual filesystem
-          const dbBytes = await dbFile.async("uint8array");
-          if (!pyodideInstance) {
-            pyodideInstance = await loadPyodide();
-            await pyodideInstance.loadPackage("sqlite3");
-          }
-          pyodideInstance.FS.writeFile("database.sqlite", dbBytes);
-
-          // Reset query state before restoring
-          queryHistory = sessionData.queries; // Set this first
-          queryInterfaceCount = 0;
-          document.getElementById("queryInterfaces").innerHTML = ""; // Clear after setting queryHistory
-
-          // Restore the session state
-          currentDatabaseName = sessionData.databaseName;
-          document.getElementById("selectedFileName").textContent =
-            currentDatabaseName;
-          document.getElementById("noFileMessage").style.display = "none";
-
-          // Create a File object from the database bytes
-          const databaseFile = new File([dbBytes], sessionData.databaseName, {
-            type: "application/x-sqlite3",
-          });
-
-          // Pass the File object to loadDatabase with isRestoring flag
-          await loadDatabase(databaseFile, true);
-
-          // Restore query interfaces with correct counting
-          queryHistory.forEach((item, index) => {
-            queryInterfaceCount = index + 1; // Update counter as we add each interface
-            const interfaceId = queryInterfaceCount;
-            const newInterface = document.createElement("div");
-            newInterface.className = "yrQueryInterface";
-            newInterface.setAttribute("data-base-font", "1");
-            newInterface.innerHTML = `
-              <div class="yrFlexContainer">
-                <h3>SQL Command ${interfaceId}</h3>
-                <div class="yrFontControl">
-                  <button onclick="adjustFontSize('query_interface_${interfaceId}', -0.1)" class="yrFontButton">A-</button>
-                  <button onclick="adjustFontSize('query_interface_${interfaceId}', 0.1)" class="yrFontButton">A+</button>
-                </div>
-              </div>
-              <div id="sqlQuery${interfaceId}" class="yrQueryTextarea"></div>
-              <br />
-              <button onclick="runQuery(${interfaceId})" class="yrButton yrGreyButton">Run Query</button>
-              <div id="output${interfaceId}" class="yrOutputContainer"></div>
-            `;
-            document
-              .getElementById("queryInterfaces")
-              .appendChild(newInterface);
-
-            // Initialize CodeMirror and set the value
-            const editor = initializeCodeMirror(`sqlQuery${interfaceId}`);
-            editor.setValue(item.query);
-            editor.refresh();
-
-            // Restore the query results
-            const outputElement = document.getElementById(
-              `output${interfaceId}`
-            );
-            if (item.results) {
-              let tableHtml = '<table border="1"><tr>';
-              item.results.columns.forEach((col) => {
-                tableHtml += `<th>${col}</th>`;
-              });
-              tableHtml += "</tr>";
-
-              item.results.rows.forEach((row) => {
-                tableHtml += "<tr>";
-                row.forEach((cell) => {
-                  tableHtml += `<td>${cell}</td>`;
+                `.trim()
+                );
+
+                const data = JSON.parse(result);
+
+                // Create table HTML
+                let tableHtml = '<table border="1"><tr>';
+                data.columns.forEach((col) => {
+                    tableHtml += `<th>${col}</th>`;
                 });
                 tableHtml += "</tr>";
-              });
-              tableHtml += "</table>";
-              outputElement.innerHTML = tableHtml;
+
+                data.rows.forEach((row) => {
+                    tableHtml += "<tr>";
+                    row.forEach((cell) => {
+                        tableHtml += `<td>${cell}</td>`;
+                    });
+                    tableHtml += "</tr>";
+                });
+                tableHtml += "</table>";
+
+                // Update or add to history
+                const historyIndex = interfaceId - 1;
+                const historyEntry = {
+                    query: query,
+                    timestamp: new Date().toISOString(),
+                    results: data,
+                };
+
+                if (historyIndex < queryHistory.length) {
+                    // Update existing entry
+                    queryHistory[historyIndex] = historyEntry;
+                } else {
+                    // Add new entry
+                    queryHistory.push(historyEntry);
+                }
+                isSessionSaved = false;
+
+                outputElement.innerHTML = tableHtml;
+
+                // Check if there's already a blank query interface at the end
+                const lastInterface = document.querySelector(
+                    ".yrQueryInterface:last-child"
+                );
+                const lastTextarea =
+                    lastInterface.querySelector(".CodeMirror").CodeMirror;
+
+                // Only add a new interface if the last one isn't empty
+                if (lastTextarea.getValue().trim() !== "") {
+                    // Count existing interfaces to determine next number
+                    const existingInterfaces =
+                        document.getElementsByClassName("yrQueryInterface");
+                    const newInterfaceId = existingInterfaces.length + 1;
+
+                    const newInterface = document.createElement("div");
+                    newInterface.className = "yrQueryInterface";
+                    newInterface.setAttribute("data-base-font", "1");
+                    newInterface.innerHTML = `
+                        <div class="yrFlexContainer">
+                            <h3>SQL Command ${newInterfaceId}</h3>
+                            <div class="yrFontControl">
+                                <button onclick="adjustFontSize('query_interface_${newInterfaceId}', -0.1)" class="yrFontButton">A-</button>
+                                <button onclick="adjustFontSize('query_interface_${newInterfaceId}', 0.1)" class="yrFontButton">A+</button>
+                            </div>
+                        </div>
+                        <div id="sqlQuery${newInterfaceId}" class="yrQueryTextarea"></div>
+                        <br />
+                        <button onclick="runQuery(${newInterfaceId})" class="yrButton yrGreyButton">Run Query</button>
+                        <div id="output${newInterfaceId}" class="yrOutputContainer"></div>
+                    `;
+                    document
+                        .getElementById("queryInterfaces")
+                        .appendChild(newInterface);
+                    initializeCodeMirror(`sqlQuery${newInterfaceId}`);
+                    queryInterfaceCount = newInterfaceId; // Update the counter to match
+                }
+            } catch (error) {
+                outputElement.innerHTML = `<div class="yrErrorMessage">Error executing query: ${error.message}</div>`;
             }
-          });
-
-          // Add blank interface with correct numbering
-          const newInterfaceId = queryInterfaceCount + 1;
-          const newInterface = document.createElement("div");
-          newInterface.className = "yrQueryInterface";
-          newInterface.setAttribute("data-base-font", "1");
-          newInterface.innerHTML = `
-            <div class="yrFlexContainer">
-              <h3>SQL Command ${newInterfaceId}</h3>
-              <div class="yrFontControl">
-                <button onclick="adjustFontSize('query_interface_${newInterfaceId}', -0.1)" class="yrFontButton">A-</button>
-                <button onclick="adjustFontSize('query_interface_${newInterfaceId}', 0.1)" class="yrFontButton">A+</button>
-              </div>
-            </div>
-            <div id="sqlQuery${newInterfaceId}" class="yrQueryTextarea"></div>
-            <br />
-            <button onclick="runQuery(${newInterfaceId})" class="yrButton yrGreyButton">Run Query</button>
-            <div id="output${newInterfaceId}" class="yrOutputContainer"></div>
-          `;
-          document.getElementById("queryInterfaces").appendChild(newInterface);
-          const editor = initializeCodeMirror(`sqlQuery${newInterfaceId}`);
-          editor.refresh();
-          queryInterfaceCount++; // Increment the counter for the new blank interface
-
-          isSessionSaved = true;
-        } catch (error) {
-          alert(`Error restoring session: ${error.message}`);
-          console.error("Session restore error:", error);
-        } finally {
-          // Clear the file input so the same file can be selected again
-          fileInput.value = "";
         }
-      }
 
-      async function showAllTablesData() {
-        console.log("starting: async function showAllTablesData()");
-        const tableCards = document.getElementsByClassName("yrTableCard");
-        for (const card of tableCards) {
-          const tableName = card
-            .querySelector(".yrTableName")
-            .textContent.replace("Table: ", "");
-          await showTableData(tableName);
+        function formatQueryResultsAsText(query, results) {
+            console.log("starting: formatQueryResultsAsText(query, results)");
+            let output = `Query: ${query}\n\n`;
+
+            // Handle case where query hasn't been run yet
+            if (!results) {
+                return output + "(Query not yet executed)\n\n";
+            }
+
+            // Find max width for each column
+            const colWidths = results.columns.map((col, i) => {
+                let maxWidth = col.length;
+                results.rows.forEach((row) => {
+                    const cellWidth = String(row[i]).length;
+                    maxWidth = Math.max(maxWidth, cellWidth);
+                });
+                return maxWidth;
+            });
+
+            // Header
+            output +=
+                results.columns
+                    .map((col, i) => col.padEnd(colWidths[i]))
+                    .join(" | ") + "\n";
+
+            // Separator
+            output += colWidths.map((w) => "-".repeat(w)).join("-+-") + "\n";
+
+            // Rows
+            results.rows.forEach((row) => {
+                output +=
+                    row
+                        .map((cell, i) => String(cell).padEnd(colWidths[i]))
+                        .join(" | ") + "\n";
+            });
+
+            return output + "\n";
         }
-      }
 
-      function showAllTablesStructure() {
-        console.log("starting: function showAllTablesStructure()");
-        const tableCards = document.getElementsByClassName("yrTableCard");
-        for (const card of tableCards) {
-          const tableName = card
-            .querySelector(".yrTableName")
-            .textContent.replace("Table: ", "");
-          // Get the columns data from the existing button's onclick attribute
-          const structureButton = card.querySelector(".yrButton");
-          const onclickAttr = structureButton.getAttribute("onclick");
-          const columnsMatch = onclickAttr.match(
-            /showTableStructure\('.*?', (.*?)\)/
-          );
-          if (columnsMatch && columnsMatch[1]) {
-            const columns = JSON.parse(columnsMatch[1].replace(/&quot;/g, '"'));
-            showTableStructure(tableName, columns);
-          }
+        function clearSession() {
+            console.log("starting: clearSession()");
+            if (
+                confirm(
+                    "Are you sure you want to clear the current session? This will remove all queries and results."
+                )
+            ) {
+                queryHistory = [];
+                isSessionSaved = true;
+                queryInterfaceCount = 0;
+                currentDatabaseName = "";
+                tableNames = [];
+
+                document.getElementById("tableList").innerHTML = "";
+                document.getElementById("queryInterfaces").innerHTML = `
+                    <div class="yrQueryInterface" data-base-font="1">
+                        <div class="yrFlexContainer">
+                            <h3>SQL Command 1</h3>
+                            <div class="yrFontControl">
+                                <button onclick="adjustFontSize('query_interface_1', -0.1)" class="yrFontButton">A-</button>
+                                <button onclick="adjustFontSize('query_interface_1', 0.1)" class="yrFontButton">A+</button>
+                            </div>
+                        </div>
+                        <textarea
+                            id="sqlQuery1"
+                            rows="3"
+                            placeholder="Enter SQL query here..."
+                            class="yrQueryTextarea"
+                            oninput="autoResize(this)"
+                        ></textarea>
+                        <br />
+                        <button onclick="runQuery(1)" class="yrButton yrGreyButton">Run Query</button>
+                        <div id="output1" class="yrOutputContainer"></div>
+                    </div>
+                `;
+                document.getElementById("selectedFileName").textContent =
+                    "no file chosen yet";
+                document.getElementById("noFileMessage").style.display = "block";
+                initializeCodeMirror("sqlQuery1");
+            }
         }
-      }
 
-      function initializeCodeMirror(elementId) {
-        const editor = CodeMirror(document.getElementById(elementId), {
-          mode: "text/x-sql",
-          theme: "eclipse", // Change this to try different themes
-          lineNumbers: true,
-          lineWrapping: true,
-          viewportMargin: Infinity,
-          placeholder: "Enter SQL query here...",
-          extraKeys: {
-            "Ctrl-Enter": function (cm) {
-              const id = elementId.replace("sqlQuery", "");
-              runQuery(id);
-            },
-            "Cmd-Enter": function (cm) {
-              const id = elementId.replace("sqlQuery", "");
-              runQuery(id);
-            },
-          },
+        async function saveSession() {
+            console.log("starting: async function saveSession()");
+            const baseFilename = prompt(
+                "Enter filename (without extension)\nFile will be saved as a .yrslv file:",
+                "yrSqliteViewerSession"
+            );
+
+            if (baseFilename) {
+                const zip = new JSZip();
+
+                // Update queryHistory with current state of all editors
+                const queryInterfaces =
+                    document.getElementsByClassName("yrQueryInterface");
+                let updatedHistory = [];
+
+                Array.from(queryInterfaces).forEach((queryInterface, index) => {
+                    const interfaceId = index + 1;
+                    const editor = editors[`sqlQuery${interfaceId}`];
+                    if (editor) {
+                        const currentQuery = editor.getValue().trim();
+                        if (currentQuery) {
+                            // Only save non-empty queries
+                            let historyEntry;
+                            // Try to find existing history entry
+                            const existingEntry = queryHistory[index];
+                            if (existingEntry) {
+                                historyEntry = {
+                                    ...existingEntry,
+                                    query: currentQuery,
+                                };
+                            } else {
+                                historyEntry = {
+                                    query: currentQuery,
+                                    timestamp: new Date().toISOString(),
+                                    results: null, // No results if query hasn't been run
+                                };
+                            }
+                            updatedHistory.push(historyEntry);
+                        }
+                    }
+                });
+
+                // Replace queryHistory with updated version
+                queryHistory = updatedHistory;
+
+                // Prepare JSON content
+                const jsonContent = JSON.stringify(
+                    {
+                        jsonFormatVersion: "0.1",
+                        yrSqliteViewerVersion: "0.1",
+                        databaseName: currentDatabaseName,
+                        queries: queryHistory,
+                    },
+                    null,
+                    2
+                );
+                zip.file(`${baseFilename}.json`, jsonContent);
+
+                // Prepare TXT content
+                let textContent = `Database: ${currentDatabaseName}\n\n`;
+                textContent += `Tables:\n${tableNames.join("\n")}\n\n`;
+                textContent += "Query Results:\n\n";
+
+                queryHistory.forEach((item, index) => {
+                    textContent += `--- Query ${index + 1} ---\n`;
+                    textContent += formatQueryResultsAsText(item.query, item.results);
+                });
+                zip.file(`${baseFilename}.txt`, textContent);
+
+                // Add the SQLite database file to the ZIP
+                const dbBytes = pyodideInstance.FS.readFile("database.sqlite");
+                zip.file(`${currentDatabaseName}`, dbBytes);
+
+                // Generate and download ZIP file using saveAs
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                saveAs(zipBlob, `${baseFilename}.yrslv`);
+
+                isSessionSaved = true;
+            }
+        }
+
+        function showTableStructure(tableName, columns) {
+            console.log(
+                `starting: function showTableStructure(tableName=${tableName}, columns=${columns})`
+            );
+            const infoDiv = document.getElementById(`${tableName}_info`);
+
+            let structureHtml = `
+                <div class="yrTableStructure">
+                    <table class="yrDataTable">
+                        <tr>
+                            <th>Column</th>
+                            <th>Type</th>
+                        </tr>`;
+
+            columns.forEach((col) => {
+                structureHtml += `
+                    <tr>
+                        <td>${col.name}</td>
+                        <td>${col.type}</td>
+                    </tr>`;
+            });
+
+            structureHtml += `</table></div>`;
+            infoDiv.innerHTML = structureHtml;
+            infoDiv.style.display = "block";
+        }
+
+        async function showTableData(tableName) {
+            console.log("starting: async function showTableData(tableName)");
+            const infoDiv = document.getElementById(`${tableName}_info`);
+            try {
+                const result = await pyodideInstance.runPythonAsync(`
+                    import sqlite3
+                    import json
+
+                    conn = sqlite3.connect("database.sqlite")
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM '" + "${tableName}" + "'")
+                    columns = [description[0] for description in cursor.description]
+                    rows = cursor.fetchall()
+                    json.dumps({"columns": columns, "rows": rows})
+                `);
+
+                const data = JSON.parse(result);
+
+                let tableHtml = `
+                    <div class="yrScrollContainer">
+                        <table class="yrDataTable">
+                            <tr>`;
+
+                data.columns.forEach((col) => {
+                    tableHtml += `<th>${col}</th>`;
+                });
+
+                tableHtml += `</tr>`;
+
+                data.rows.forEach((row) => {
+                    tableHtml += `<tr>`;
+                    row.forEach((cell) => {
+                        tableHtml += `<td>${cell}</td>`;
+                    });
+                    tableHtml += `</tr>`;
+                });
+
+                tableHtml += `</table></div>`;
+                infoDiv.innerHTML = tableHtml;
+                infoDiv.style.display = "block";
+            } catch (error) {
+                infoDiv.innerHTML = `<div class="yrErrorMessage">Error loading table data: ${error.message}</div>`;
+                infoDiv.style.display = "block";
+            }
+        }
+
+        async function restoreSession() {
+            console.log("starting: async function restoreSession()");
+            const fileInput = document.getElementById("restoreSession");
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            try {
+                // Read the zip file
+                const zipData = await file.arrayBuffer();
+                const zip = await JSZip.loadAsync(zipData);
+
+                // Find and parse the JSON file
+                const jsonFile = Object.values(zip.files).find((file) =>
+                    file.name.endsWith(".json")
+                );
+                if (!jsonFile) throw new Error("No JSON file found in the archive");
+
+                const jsonContent = await jsonFile.async("string");
+                const sessionData = JSON.parse(jsonContent);
+
+                // Verify format version
+                if (sessionData.jsonFormatVersion !== "0.1") {
+                    throw new Error("Incompatible session format version");
+                }
+
+                // Find and extract the database file
+                const dbFile = zip.files[sessionData.databaseName];
+                if (!dbFile) throw new Error("Database file not found in archive");
+
+                // Write the database file to Pyodide's virtual filesystem
+                const dbBytes = await dbFile.async("uint8array");
+                if (!pyodideInstance) {
+                    pyodideInstance = await loadPyodide();
+                    await pyodideInstance.loadPackage("sqlite3");
+                }
+                pyodideInstance.FS.writeFile("database.sqlite", dbBytes);
+
+                // Reset query state before restoring
+                queryHistory = sessionData.queries; // Set this first
+                queryInterfaceCount = 0;
+                document.getElementById("queryInterfaces").innerHTML = ""; // Clear after setting queryHistory
+
+                // Restore the session state
+                currentDatabaseName = sessionData.databaseName;
+                document.getElementById("selectedFileName").textContent =
+                    currentDatabaseName;
+                document.getElementById("noFileMessage").style.display = "none";
+
+                // Create a File object from the database bytes
+                const databaseFile = new File([dbBytes], sessionData.databaseName, {
+                    type: "application/x-sqlite3",
+                });
+
+                // Pass the File object to loadDatabase with isRestoring flag
+                await loadDatabase(databaseFile, true);
+
+                // Restore query interfaces with correct counting
+                queryHistory.forEach((item, index) => {
+                    queryInterfaceCount = index + 1; // Update counter as we add each interface
+                    const interfaceId = queryInterfaceCount;
+                    const newInterface = document.createElement("div");
+                    newInterface.className = "yrQueryInterface";
+                    newInterface.setAttribute("data-base-font", "1");
+                    newInterface.innerHTML = `
+                        <div class="yrFlexContainer">
+                            <h3>SQL Command ${interfaceId}</h3>
+                            <div class="yrFontControl">
+                                <button onclick="adjustFontSize('query_interface_${interfaceId}', -0.1)" class="yrFontButton">A-</button>
+                                <button onclick="adjustFontSize('query_interface_${interfaceId}', 0.1)" class="yrFontButton">A+</button>
+                            </div>
+                        </div>
+                        <div id="sqlQuery${interfaceId}" class="yrQueryTextarea"></div>
+                        <br />
+                        <button onclick="runQuery(${interfaceId})" class="yrButton yrGreyButton">Run Query</button>
+                        <div id="output${interfaceId}" class="yrOutputContainer"></div>
+                    `;
+                    document
+                        .getElementById("queryInterfaces")
+                        .appendChild(newInterface);
+
+                    // Initialize CodeMirror and set the value
+                    const editor = initializeCodeMirror(`sqlQuery${interfaceId}`);
+                    editor.setValue(item.query);
+                    editor.refresh();
+
+                    // Restore the query results
+                    const outputElement = document.getElementById(
+                        `output${interfaceId}`
+                    );
+                    if (item.results) {
+                        let tableHtml = '<table border="1"><tr>';
+                        item.results.columns.forEach((col) => {
+                            tableHtml += `<th>${col}</th>`;
+                        });
+                        tableHtml += "</tr>";
+
+                        item.results.rows.forEach((row) => {
+                            tableHtml += "<tr>";
+                            row.forEach((cell) => {
+                                tableHtml += `<td>${cell}</td>`;
+                            });
+                            tableHtml += "</tr>";
+                        });
+                        tableHtml += "</table>";
+                        outputElement.innerHTML = tableHtml;
+                    }
+                });
+
+                // Add blank interface with correct numbering
+                const newInterfaceId = queryInterfaceCount + 1;
+                const newInterface = document.createElement("div");
+                newInterface.className = "yrQueryInterface";
+                newInterface.setAttribute("data-base-font", "1");
+                newInterface.innerHTML = `
+                    <div class="yrFlexContainer">
+                        <h3>SQL Command ${newInterfaceId}</h3>
+                        <div class="yrFontControl">
+                            <button onclick="adjustFontSize('query_interface_${newInterfaceId}', -0.1)" class="yrFontButton">A-</button>
+                            <button onclick="adjustFontSize('query_interface_${newInterfaceId}', 0.1)" class="yrFontButton">A+</button>
+                        </div>
+                    </div>
+                    <div id="sqlQuery${newInterfaceId}" class="yrQueryTextarea"></div>
+                    <br />
+                    <button onclick="runQuery(${newInterfaceId})" class="yrButton yrGreyButton">Run Query</button>
+                    <div id="output${newInterfaceId}" class="yrOutputContainer"></div>
+                `;
+                document.getElementById("queryInterfaces").appendChild(newInterface);
+                const editor = initializeCodeMirror(`sqlQuery${newInterfaceId}`);
+                editor.refresh();
+                queryInterfaceCount++; // Increment the counter for the new blank interface
+
+                isSessionSaved = true;
+            } catch (error) {
+                alert(`Error restoring session: ${error.message}`);
+                console.error("Session restore error:", error);
+            } finally {
+                // Clear the file input so the same file can be selected again
+                fileInput.value = "";
+            }
+        }
+
+        async function showAllTablesData() {
+            console.log("starting: async function showAllTablesData()");
+            const tableCards = document.getElementsByClassName("yrTableCard");
+            for (const card of tableCards) {
+                const tableName = card
+                    .querySelector(".yrTableName")
+                    .textContent.replace("Table: ", "");
+                await showTableData(tableName);
+            }
+        }
+
+        function showAllTablesStructure() {
+            console.log("starting: function showAllTablesStructure()");
+            const tableCards = document.getElementsByClassName("yrTableCard");
+            for (const card of tableCards) {
+                const tableName = card
+                    .querySelector(".yrTableName")
+                    .textContent.replace("Table: ", "");
+                // Get the columns data from the existing button's onclick attribute
+                const structureButton = card.querySelector(".yrButton");
+                const onclickAttr = structureButton.getAttribute("onclick");
+                const columnsMatch = onclickAttr.match(
+                    /showTableStructure\('.*?', (.*?)\)/
+                );
+                if (columnsMatch && columnsMatch[1]) {
+                    const columns = JSON.parse(columnsMatch[1].replace(/&quot;/g, '"'));
+                    showTableStructure(tableName, columns);
+                }
+            }
+        }
+
+        function initializeCodeMirror(elementId) {
+            const editor = CodeMirror(document.getElementById(elementId), {
+                mode: "text/x-sql",
+                theme: "eclipse", // Change this to try different themes
+                lineNumbers: true,
+                lineWrapping: true,
+                viewportMargin: Infinity,
+                placeholder: "Enter SQL query here...",
+                extraKeys: {
+                    "Ctrl-Enter": function (cm) {
+                        const id = elementId.replace("sqlQuery", "");
+                        runQuery(id);
+                    },
+                    "Cmd-Enter": function (cm) {
+                        const id = elementId.replace("sqlQuery", "");
+                        runQuery(id);
+                    },
+                },
+            });
+
+            editors[elementId] = editor;
+            return editor;
+        }
+
+        // Attach the event listener
+        document.addEventListener("DOMContentLoaded", () => {
+            document
+                .getElementById("sqliteFile")
+                .addEventListener("input", async (event) => {
+                    const file = event.target.files[0];
+                    await loadDatabase(file);
+                });
+
+            // Add this new event listener
+            document
+                .getElementById("restoreSession")
+                .addEventListener("input", async () => {
+                    await restoreSession();
+                });
         });
-
-        editors[elementId] = editor;
-        return editor;
-      }
-
-      // Attach the event listener
-      document.addEventListener("DOMContentLoaded", () => {
-        document
-          .getElementById("sqliteFile")
-          .addEventListener("input", async (event) => {
-            const file = event.target.files[0];
-            await loadDatabase(file);
-          });
-      });
     </script>
   </body>
 </html>
