@@ -1,32 +1,45 @@
+// Import the getEditor function from the SQL interface module
+import { getEditor } from './yrSqliteViewer-sql-interface.js';
+
 // Functions for handling font size adjustments and resizing
 
 function adjustFontSize(elementId, delta) {
     console.log("starting: function adjustFontSize(elementId, delta)");
     let element;
-    if (elementId.includes("query_interface_")) {
-        const interfaceNumber = elementId.split("_").pop();
-        const editor = editors[`sqlQuery${interfaceNumber}`];
+    
+    if (elementId.startsWith('query_interface_')) {
+        // For SQL interfaces, find the specific interface container
+        const queryId = elementId.replace('query_interface_', '');
+        element = document.querySelector(`#sqlQuery${queryId}`).closest('.yrQueryInterface');
+        
+        if (!element) return;
+        
+        const currentSize = parseFloat(element.getAttribute("data-base-font")) || 1;
+        const newSize = Math.max(0.5, Math.min(3, currentSize + delta));
+        element.setAttribute("data-base-font", newSize);
+        element.style.fontSize = `${newSize}em`;
+
+        // Also adjust the CodeMirror instance
+        const editor = getEditor(queryId);
         if (editor) {
             const wrapper = editor.getWrapperElement();
-            let baseFontSize = parseFloat(wrapper.getAttribute("data-base-font")) || 1;
-            baseFontSize = Math.max(0.5, Math.min(2, baseFontSize + delta));
-            wrapper.setAttribute("data-base-font", baseFontSize);
-            wrapper.style.fontSize = `${baseFontSize}em`;
+            wrapper.style.fontSize = `${newSize}em`;
+            editor.refresh();
         }
-    } else if (elementId.includes("_card")) {
-        // For table cards
-        const tableName = elementId.replace("_card", "");
-        element = Array.from(document.getElementsByClassName("yrTableCard"))
-            .find(card => card.querySelector(".yrTableName").textContent === `Table: ${tableName}`);
+        return;
+    } else if (elementId.endsWith('_card')) {
+        // For table cards, find the specific card
+        const tableName = elementId.replace('_card', '');
+        element = Array.from(document.getElementsByClassName('yrTableCard'))
+            .find(card => card.querySelector('.yrTableName').textContent === `Table: ${tableName}`);
     }
 
     if (!element) return;
 
-    let baseFontSize = parseFloat(element.getAttribute("data-base-font")) || 1;
-    baseFontSize = Math.max(0.5, Math.min(2, baseFontSize + delta)); // Limit between 0.5 and 2
-
-    element.setAttribute("data-base-font", baseFontSize);
-    element.style.fontSize = `${baseFontSize}em`;
+    const currentSize = parseFloat(element.getAttribute("data-base-font")) || 1;
+    const newSize = Math.max(0.5, Math.min(3, currentSize + delta));
+    element.setAttribute("data-base-font", newSize);
+    element.style.fontSize = `${newSize}em`;
 }
 
 function adjustAllTablesFontSize(delta) {

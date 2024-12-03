@@ -66,6 +66,7 @@
       }
     </style>
     <script src="yrSqliteViewer-resize.js" type="module"></script>
+    <script src="yrSqliteViewer-sql-interface.js" type="module"></script>
   </head>
   <body>
     <div class="yrControlPanel">
@@ -247,7 +248,7 @@
     </div>
 
     <script type="module">
-        // Import the resize functions at the top of your script
+        // Import the resize functions
         import {
             adjustFontSize,
             adjustAllTablesFontSize,
@@ -257,6 +258,15 @@
             autoResize
         } from './yrSqliteViewer-resize.js';
 
+        // Import the SQL interface functions
+        import {
+            initializeCodeMirror,
+            createSqlInterfaceHTML,
+            addSqlInterface,
+            getEditor,
+            clearAllInterfaces
+        } from './yrSqliteViewer-sql-interface.js';
+
         // Make the imported functions available to the global scope
         window.adjustFontSize = adjustFontSize;
         window.adjustAllTablesFontSize = adjustAllTablesFontSize;
@@ -264,6 +274,7 @@
         window.adjustAllQueryInterfacesFontSize = adjustAllQueryInterfacesFontSize;
         window.setAllQueryInterfacesFontSize = setAllQueryInterfacesFontSize;
         window.autoResize = autoResize;
+        window.initializeCodeMirror = initializeCodeMirror;
 
         // Make other functions globally available
         window.restoreSession = restoreSession;
@@ -275,7 +286,6 @@
         window.showTableData = showTableData;
         window.showAllTablesData = showAllTablesData;
         window.showAllTablesStructure = showAllTablesStructure;
-        window.initializeCodeMirror = initializeCodeMirror;
 
         let pyodideInstance = null;
         let queryHistory = [];
@@ -283,7 +293,6 @@
         let currentDatabaseName = "";
         let tableNames = [];
         let isSessionSaved = true;
-        let editors = {};
 
         window.onbeforeunload = function (e) {
             if (queryHistory.length > 0 && !isSessionSaved) {
@@ -308,25 +317,9 @@
             try {
                 // Skip creating initial interface if we're restoring a session
                 if (!isRestoring) {
-                    // Clear existing query interfaces and reset counter
-                    document.getElementById("queryInterfaces").innerHTML = `
-                        <div class="yrQueryInterface" data-base-font="1">
-                            <div class="yrFlexContainer">
-                                <h3>SQL Command 1</h3>
-                                <div class="yrFontControl">
-                                    <button onclick="adjustFontSize('query_interface_1', -0.1)" class="yrFontButton">A-</button>
-                                    <button onclick="adjustFontSize('query_interface_1', 0.1)" class="yrFontButton">A+</button>
-                                </div>
-                            </div>
-                            <div id="sqlQuery1" class="yrQueryTextarea"></div>
-                            <br />
-                            <button onclick="runQuery(1)" class="yrButton yrGreyButton">Run Query</button>
-                            <div id="output1" class="yrOutputContainer"></div>
-                        </div>
-                    `;
+                    clearAllInterfaces();
+                    addSqlInterface(1);
                     queryInterfaceCount = 0;
-                    // Initialize CodeMirror for the first interface
-                    initializeCodeMirror('sqlQuery1');
                 }
 
                 // Display filename
@@ -431,7 +424,7 @@ json.dumps({"tables": table_info})
             console.log(`starting: runQuery(interfaceId=${interfaceId})`);
             if (!pyodideInstance) return;
 
-            const editor = editors[`sqlQuery${interfaceId}`];
+            const editor = getEditor(interfaceId);
             const outputElement = document.getElementById(`output${interfaceId}`);
             const query = editor.getValue();
 
@@ -623,13 +616,12 @@ json.dumps({"columns": columns, "rows": rows})
                 const zip = new JSZip();
 
                 // Update queryHistory with current state of all editors
-                const queryInterfaces =
-                    document.getElementsByClassName("yrQueryInterface");
+                const queryInterfaces = document.getElementsByClassName("yrQueryInterface");
                 let updatedHistory = [];
 
                 Array.from(queryInterfaces).forEach((queryInterface, index) => {
                     const interfaceId = index + 1;
-                    const editor = editors[`sqlQuery${interfaceId}`];
+                    const editor = getEditor(interfaceId);
                     if (editor) {
                         const currentQuery = editor.getValue().trim();
                         if (currentQuery) {
@@ -806,12 +798,21 @@ json.dumps({"columns": columns, "rows": rows})
                 // Reset query state before restoring
                 queryHistory = sessionData.queries; // Set this first
                 queryInterfaceCount = 0;
-                document.getElementById("queryInterfaces").innerHTML = ""; // Clear after setting queryHistory
+                clearAllInterfaces(); // Use the new function to clear interfaces
+
+                // Reset all font size inputs to 1.0
+                const fontInputs = document.querySelectorAll('.yrFontInput');
+                fontInputs.forEach(input => {
+                    input.value = "1.0";
+                });
+                
+                // Reset font sizes for all elements
+                setAllTablesFontSize(1.0);
+                setAllQueryInterfacesFontSize(1.0);
 
                 // Restore the session state
                 currentDatabaseName = sessionData.databaseName;
-                document.getElementById("selectedFileName").textContent =
-                    currentDatabaseName;
+                document.getElementById("selectedFileName").textContent = currentDatabaseName;
                 document.getElementById("noFileMessage").style.display = "none";
 
                 // Create a File object from the database bytes
@@ -824,37 +825,13 @@ json.dumps({"columns": columns, "rows": rows})
 
                 // Restore query interfaces with correct counting
                 queryHistory.forEach((item, index) => {
-                    queryInterfaceCount = index + 1; // Update counter as we add each interface
-                    const interfaceId = queryInterfaceCount;
-                    const newInterface = document.createElement("div");
-                    newInterface.className = "yrQueryInterface";
-                    newInterface.setAttribute("data-base-font", "1");
-                    newInterface.innerHTML = `
-                        <div class="yrFlexContainer">
-                            <h3>SQL Command ${interfaceId}</h3>
-                            <div class="yrFontControl">
-                                <button onclick="adjustFontSize('query_interface_${interfaceId}', -0.1)" class="yrFontButton">A-</button>
-                                <button onclick="adjustFontSize('query_interface_${interfaceId}', 0.1)" class="yrFontButton">A+</button>
-                            </div>
-                        </div>
-                        <div id="sqlQuery${interfaceId}" class="yrQueryTextarea"></div>
-                        <br />
-                        <button onclick="runQuery(${interfaceId})" class="yrButton yrGreyButton">Run Query</button>
-                        <div id="output${interfaceId}" class="yrOutputContainer"></div>
-                    `;
-                    document
-                        .getElementById("queryInterfaces")
-                        .appendChild(newInterface);
-
-                    // Initialize CodeMirror and set the value
-                    const editor = initializeCodeMirror(`sqlQuery${interfaceId}`);
+                    queryInterfaceCount = index + 1;
+                    const editor = addSqlInterface(queryInterfaceCount);
                     editor.setValue(item.query);
                     editor.refresh();
 
                     // Restore the query results
-                    const outputElement = document.getElementById(
-                        `output${interfaceId}`
-                    );
+                    const outputElement = document.getElementById(`output${queryInterfaceCount}`);
                     if (item.results) {
                         let tableHtml = '<table border="1"><tr>';
                         item.results.columns.forEach((col) => {
@@ -876,24 +853,7 @@ json.dumps({"columns": columns, "rows": rows})
 
                 // Add blank interface with correct numbering
                 const newInterfaceId = queryInterfaceCount + 1;
-                const newInterface = document.createElement("div");
-                newInterface.className = "yrQueryInterface";
-                newInterface.setAttribute("data-base-font", "1");
-                newInterface.innerHTML = `
-                    <div class="yrFlexContainer">
-                        <h3>SQL Command ${newInterfaceId}</h3>
-                        <div class="yrFontControl">
-                            <button onclick="adjustFontSize('query_interface_${newInterfaceId}', -0.1)" class="yrFontButton">A-</button>
-                            <button onclick="adjustFontSize('query_interface_${newInterfaceId}', 0.1)" class="yrFontButton">A+</button>
-                        </div>
-                    </div>
-                    <div id="sqlQuery${newInterfaceId}" class="yrQueryTextarea"></div>
-                    <br />
-                    <button onclick="runQuery(${newInterfaceId})" class="yrButton yrGreyButton">Run Query</button>
-                    <div id="output${newInterfaceId}" class="yrOutputContainer"></div>
-                `;
-                document.getElementById("queryInterfaces").appendChild(newInterface);
-                const editor = initializeCodeMirror(`sqlQuery${newInterfaceId}`);
+                const editor = addSqlInterface(newInterfaceId);
                 editor.refresh();
                 queryInterfaceCount++; // Increment the counter for the new blank interface
 
@@ -936,30 +896,6 @@ json.dumps({"columns": columns, "rows": rows})
                     showTableStructure(tableName, columns);
                 }
             }
-        }
-
-        function initializeCodeMirror(elementId) {
-            const editor = CodeMirror(document.getElementById(elementId), {
-                mode: "text/x-sql",
-                theme: "eclipse", // Change this to try different themes
-                lineNumbers: true,
-                lineWrapping: true,
-                viewportMargin: Infinity,
-                placeholder: "Enter SQL query here...",
-                extraKeys: {
-                    "Ctrl-Enter": function (cm) {
-                        const id = elementId.replace("sqlQuery", "");
-                        runQuery(id);
-                    },
-                    "Cmd-Enter": function (cm) {
-                        const id = elementId.replace("sqlQuery", "");
-                        runQuery(id);
-                    },
-                },
-            });
-
-            editors[elementId] = editor;
-            return editor;
         }
 
         // Attach the event listener
