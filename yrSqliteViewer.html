@@ -267,6 +267,11 @@
         clearAllInterfaces,
         createTableCardHTML,
         addTableCard,
+        beginSessionRestore,
+        endSessionRestore,
+        ensureOneBlankInterface,
+        resetLastInterfaceId,
+        getLastInterfaceId
       } from "./yrSqliteViewer-sql-interface.js";
 
       // Make the imported functions available to the global scope
@@ -278,6 +283,7 @@
       window.setAllQueryInterfacesFontSize = setAllQueryInterfacesFontSize;
       window.autoResize = autoResize;
       window.initializeCodeMirror = initializeCodeMirror;
+      window.ensureOneBlankInterface = ensureOneBlankInterface;
 
       // Make other functions globally available
       window.restoreSession = restoreSession;
@@ -318,11 +324,32 @@
         document.getElementById("loadingMessage").style.display = "block";
 
         try {
-          // Skip creating initial interface if we're restoring a session
+          // Reset all state unless we're restoring a session
           if (!isRestoring) {
-            clearAllInterfaces();
-            addSqlInterface(1);
+            // Reset query history
+            queryHistory = [];
             queryInterfaceCount = 0;
+            isSessionSaved = true;
+            
+            // Clear interfaces and reset interface ID
+            clearAllInterfaces();
+            resetLastInterfaceId();
+            
+            // Reset table state
+            tableNames = [];
+            document.getElementById("tableList").innerHTML = "";
+            
+            // Create first interface
+            addSqlInterface(1);
+            queryInterfaceCount = 1;
+
+            // Reset font sizes
+            const fontInputs = document.querySelectorAll(".yrFontInput");
+            fontInputs.forEach((input) => {
+              input.value = "1.0";
+            });
+            setAllTablesFontSize(1.0);
+            setAllQueryInterfacesFontSize(1.0);
           }
 
           // Display filename
@@ -370,13 +397,10 @@ for table in tables:
     ]
 
 json.dumps({"tables": table_info})
-                `);
+          `);
 
           const data = JSON.parse(result);
           tableNames = Object.keys(data.tables);
-
-          // YR - clear the table list
-          document.getElementById("tableList").innerHTML = "";
 
           // Display tables with buttons
           Object.entries(data.tables).forEach(([tableName, columns]) => {
@@ -391,6 +415,7 @@ json.dumps({"tables": table_info})
           // Clear the "no file" message when loading a database
           document.getElementById("noFileMessage").style.display = "none";
           document.getElementById("sqlCommandsHeader").style.display = "block";
+
         } finally {
           // Hide loading message when done (whether successful or not)
           document.getElementById("loadingMessage").style.display = "none";
@@ -409,8 +434,7 @@ json.dumps({"tables": table_info})
         if (!query.trim()) return;
 
         try {
-          const result = await pyodideInstance.runPythonAsync(
-            `
+          const result = await pyodideInstance.runPythonAsync(`
 import sqlite3
 import json
 
@@ -420,8 +444,7 @@ cursor.execute("""${query}""")
 columns = [description[0] for description in cursor.description]
 rows = cursor.fetchall()
 json.dumps({"columns": columns, "rows": rows})
-                `.trim()
-          );
+`.trim());
 
           const data = JSON.parse(result);
 
@@ -459,24 +482,11 @@ json.dumps({"columns": columns, "rows": rows})
           isSessionSaved = false;
 
           outputElement.innerHTML = tableHtml;
+          
+          // Update the interface count and ensure one blank interface
+          queryInterfaceCount = Math.max(queryInterfaceCount, parseInt(interfaceId));
+          ensureOneBlankInterface();
 
-          // Check if there's already a blank query interface at the end
-          const lastInterface = document.querySelector(
-            ".yrQueryInterface:last-child"
-          );
-          const lastTextarea =
-            lastInterface.querySelector(".CodeMirror").CodeMirror;
-
-          // Only add a new interface if the last one isn't empty
-          if (lastTextarea.getValue().trim() !== "") {
-            // Count existing interfaces to determine next number
-            const existingInterfaces =
-              document.getElementsByClassName("yrQueryInterface");
-            const newInterfaceId = existingInterfaces.length + 1;
-
-            addSqlInterface(newInterfaceId);
-            queryInterfaceCount = newInterfaceId; // Update the counter to match
-          }
         } catch (error) {
           outputElement.innerHTML = `<div class="yrErrorMessage">Error executing query: ${error.message}</div>`;
         }
@@ -724,6 +734,9 @@ json.dumps({"columns": columns, "rows": rows})
         if (!file) return;
 
         try {
+          // Start session restoration
+          beginSessionRestore();
+
           // Read the zip file
           const zipData = await file.arrayBuffer();
           const zip = await JSZip.loadAsync(zipData);
@@ -755,9 +768,9 @@ json.dumps({"columns": columns, "rows": rows})
           pyodideInstance.FS.writeFile("database.sqlite", dbBytes);
 
           // Reset query state before restoring
-          queryHistory = sessionData.queries; // Set this first
+          queryHistory = sessionData.queries;
           queryInterfaceCount = 0;
-          clearAllInterfaces(); // Use the new function to clear interfaces
+          clearAllInterfaces();
 
           // Reset all font size inputs to 1.0
           const fontInputs = document.querySelectorAll(".yrFontInput");
@@ -817,13 +830,15 @@ json.dumps({"columns": columns, "rows": rows})
           const newInterfaceId = queryInterfaceCount + 1;
           const editor = addSqlInterface(newInterfaceId);
           editor.refresh();
-          queryInterfaceCount++; // Increment the counter for the new blank interface
+          queryInterfaceCount++;
 
           isSessionSaved = true;
         } catch (error) {
           alert(`Error restoring session: ${error.message}`);
           console.error("Session restore error:", error);
         } finally {
+          // End session restoration
+          endSessionRestore();
           // Clear the file input so the same file can be selected again
           fileInput.value = "";
         }
