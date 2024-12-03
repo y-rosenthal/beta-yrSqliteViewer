@@ -31,11 +31,11 @@ function createSqlInterfaceHTML(interfaceId) {
     return `
         <div class="yrQueryInterface" data-base-font="1">
             <div class="yrFlexContainer">
-                <h3>SQL Command ${interfaceId}</h3>
                 <div class="yrFontControl">
                     <button onclick="adjustFontSize('query_interface_${interfaceId}', -0.1)" class="yrFontButton">A-</button>
                     <button onclick="adjustFontSize('query_interface_${interfaceId}', 0.1)" class="yrFontButton">A+</button>
                 </div>
+                <h3>SQL Command ${interfaceId}</h3>
             </div>
             <div id="sqlQuery${interfaceId}" class="yrQueryTextarea"></div>
             <br />
@@ -65,10 +65,46 @@ function clearAllInterfaces() {
     editors = {};
 }
 
+// Add this new function
+function createTableCardHTML(tableName, columns) {
+    return `
+        <div class="yrFlexContainer">
+            <div class="yrFontControl">
+                <button onclick="adjustFontSize('${tableName}_card', -0.1)" class="yrFontButton">A-</button>
+                <button onclick="adjustFontSize('${tableName}_card', 0.1)" class="yrFontButton">A+</button>
+            </div>
+            <div class="yrTableName">Table: ${tableName}</div>
+        </div>
+        <div class="yrTableButtons">
+            <button 
+                onclick="showTableStructure('${tableName}', ${JSON.stringify(columns).replace(/"/g, "&quot;")})"
+                class="yrButton yrGreyButton"
+            >Show Structure</button>
+            <button 
+                onclick="showTableData('${tableName}')"
+                class="yrButton yrGreyButton"
+            >Show Rows</button>
+        </div>
+        <div id="${tableName}_info" class="yrTableInfo"></div>
+    `;
+}
+
+// Add this new function
+function addTableCard(tableName, columns) {
+    const tableCard = document.createElement("div");
+    tableCard.className = "yrTableCard";
+    tableCard.setAttribute("data-base-font", "1");
+    tableCard.innerHTML = createTableCardHTML(tableName, columns);
+    document.getElementById("tableList").appendChild(tableCard);
+    return tableCard;
+}
+
 export {
     initializeCodeMirror,
     createSqlInterfaceHTML,
     addSqlInterface,
     getEditor,
-    clearAllInterfaces
+    clearAllInterfaces,
+    createTableCardHTML,
+    addTableCard
 }; 
