@@ -1,13 +1,12 @@
 import { 
-    createSqlInterfaceHTML,
-    addSqlInterface,
-    clearAllInterfaces,
+//    createSqlInterfaceHTML,
+//   addSqlInterface,
+//    clearAllInterfaces,
     ensureOneBlankInterface,
-    resetLastInterfaceId,
-    getLastInterfaceId
+//    resetLastInterfaceId,
+//    getLastInterfaceId
  } from "./interfaceManager.js";
 
-//let lastInterfaceId = 0;
 let isRestoringSession = false;
 
 
