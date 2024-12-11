@@ -259,19 +259,23 @@
       } from "./yrSqliteViewer-resize.js";
 
       import {
-//        createSqlInterfaceHTML,
-        addSqlInterface,
-        clearAllInterfaces,
+        //        createSqlInterfaceHTML,
+        //        addSqlInterface,
+        //        clearAllInterfaces,
         createTableCardHTML,
         addTableCard,
         beginSessionRestore,
         endSessionRestore,
+      } from "./yrSqliteViewer-sql-interface.js";
+
+      import {
+        createSqlInterfaceHTML,
+        clearAllInterfaces,
+        addSqlInterface,
         ensureOneBlankInterface,
         resetLastInterfaceId,
         getLastInterfaceId,
-      } from "./yrSqliteViewer-sql-interface.js";
-
-      import { createSqlInterfaceHTML } from "./interfaceManager.js";
+      } from "./interfaceManager.js";
 
       import { initializeCodeMirror, getEditor } from "./editor.js";
 
