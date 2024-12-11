@@ -1,6 +1,3 @@
-// import { initializeCodeMirror, clearEditors, getEditor } from './editor.js';
-import { initializeCodeMirror, getEditor } from './editor.js';
-
 import { 
     createSqlInterfaceHTML,
     addSqlInterface,
@@ -63,25 +60,9 @@ function endSessionRestore() {
     }
 }
 
-/*
-function resetLastInterfaceId() {
-    lastInterfaceId = 0;
-}
-
-function getLastInterfaceId() {
-    return lastInterfaceId;
-}
-*/
-
 export {
-//    createSqlInterfaceHTML,
-//    addSqlInterface,
-//    clearAllInterfaces,
     createTableCardHTML,
     addTableCard,
     beginSessionRestore,
     endSessionRestore,
-//    ensureOneBlankInterface,
-//    resetLastInterfaceId,
-//    getLastInterfaceId
 }; 

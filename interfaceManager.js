@@ -117,5 +117,4 @@ export {
     clearAllInterfaces,
     resetLastInterfaceId,
     getLastInterfaceId,
-//    lastInterfaceId
 }; 
