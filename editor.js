@@ -26,19 +26,7 @@ function initializeCodeMirror(elementId) {
     return editor;
 }
 
-//export { initializeCodeMirror, getEditor, editors }; 
-
-
 // Clear all editor instances
-/*
-function clearEditors() {
-    for (let key in editors) {
-        if (editors.hasOwnProperty(key)) {
-            delete editors[key];
-        }
-    }
-}
-*/
 function clearEditors() {
     editors = {};
 }

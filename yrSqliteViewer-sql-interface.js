@@ -1,9 +1,10 @@
 import { initializeCodeMirror, clearEditors, getEditor } from './editor.js';
 
+import { createSqlInterfaceHTML } from "./interfaceManager.js";
 let lastInterfaceId = 0;
 let isRestoringSession = false;
 
-
+/*
 // Create HTML for a new SQL interface
 function createSqlInterfaceHTML(interfaceId) {
     return `
@@ -22,7 +23,7 @@ function createSqlInterfaceHTML(interfaceId) {
         </div>
     `;
 }
-
+*/
 // Add a new SQL interface to the DOM
 function addSqlInterface(interfaceId) {
     lastInterfaceId = Math.max(lastInterfaceId, interfaceId);
@@ -158,7 +159,7 @@ function getLastInterfaceId() {
 
 
 export {
-    createSqlInterfaceHTML,
+//    createSqlInterfaceHTML,
     addSqlInterface,
     clearAllInterfaces,
     createTableCardHTML,
