@@ -1,13 +1,13 @@
-import { 
+//import { 
 //    createSqlInterfaceHTML,
 //   addSqlInterface,
 //    clearAllInterfaces,
-    ensureOneBlankInterface,
+//    ensureOneBlankInterface,
 //    resetLastInterfaceId,
 //    getLastInterfaceId
- } from "./interfaceManager.js";
+// } from "./interfaceManager.js";
 
-let isRestoringSession = false;
+//let isRestoringSession = false;
 
 
 // Add this new function
@@ -44,7 +44,7 @@ function addTableCard(tableName, columns) {
     return tableCard;
 }
 
-// Add these session management functions
+/*
 function beginSessionRestore() {
     isRestoringSession = true;
 }
@@ -58,10 +58,11 @@ function endSessionRestore() {
         console.warn('Error ensuring blank interface after session restore:', e);
     }
 }
+*/
 
 export {
     createTableCardHTML,
     addTableCard,
-    beginSessionRestore,
-    endSessionRestore,
+//    beginSessionRestore,
+//    endSessionRestore,
 }; 
