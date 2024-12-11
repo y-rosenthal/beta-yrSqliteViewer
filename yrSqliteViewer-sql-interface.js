@@ -1,8 +1,13 @@
+import { initializeCodeMirror, clearEditors, getEditor } from './editor.js';
+/*
 // Store CodeMirror editor instances
 let editors = {};
+*/
+
 let lastInterfaceId = 0;
 let isRestoringSession = false;
 
+/*
 // Initialize a new SQL interface with CodeMirror
 function initializeCodeMirror(elementId) {
     const editor = CodeMirror(document.getElementById(elementId), {
@@ -27,6 +32,7 @@ function initializeCodeMirror(elementId) {
     editors[elementId] = editor;
     return editor;
 }
+*/
 
 // Create HTML for a new SQL interface
 function createSqlInterfaceHTML(interfaceId) {
@@ -83,12 +89,17 @@ function ensureOneBlankInterface() {
         const id = parseInt(textareaElement.id.replace('sqlQuery', ''));
         maxId = Math.max(maxId, id);
         
+        /*
         const editor = editors[`sqlQuery${id}`];
+        */
+        const editor = getEditor(id);
+
         if (editor && editor.getValue().trim() === '') {
             if (foundBlank) {
                 // Remove any extra blank interfaces
                 interfaceElement.remove();
-                delete editors[`sqlQuery${id}`];
+                //delete editors[`sqlQuery${id}`];
+                deleteEditor(`sqlQuery${id}`);
             } else {
                 foundBlank = true;
             }
@@ -109,15 +120,17 @@ function ensureOneBlankInterface() {
     }
 }
 
+/*
 // Get editor instance
 function getEditor(interfaceId) {
     return editors[`sqlQuery${interfaceId}`];
 }
-
+*/
 // Clear all SQL interfaces
 function clearAllInterfaces() {
     document.getElementById("queryInterfaces").innerHTML = "";
-    editors = {};
+    //editors = {};
+    clearEditors();
     lastInterfaceId = 0;
 }
 
@@ -179,11 +192,26 @@ function getLastInterfaceId() {
     return lastInterfaceId;
 }
 
+/*
 export {
     initializeCodeMirror,
     createSqlInterfaceHTML,
     addSqlInterface,
     getEditor,
+    clearAllInterfaces,
+    createTableCardHTML,
+    addTableCard,
+    beginSessionRestore,
+    endSessionRestore,
+    ensureOneBlankInterface,
+    resetLastInterfaceId,
+    getLastInterfaceId
+}; 
+*/
+
+export {
+    createSqlInterfaceHTML,
+    addSqlInterface,
     clearAllInterfaces,
     createTableCardHTML,
     addTableCard,

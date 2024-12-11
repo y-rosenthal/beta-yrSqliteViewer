@@ -258,7 +258,7 @@
         autoResize,
       } from "./yrSqliteViewer-resize.js";
 
-      // Import the SQL interface functions
+      /*
       import {
         initializeCodeMirror,
         createSqlInterfaceHTML,
@@ -273,6 +273,22 @@
         resetLastInterfaceId,
         getLastInterfaceId
       } from "./yrSqliteViewer-sql-interface.js";
+      */
+
+      import {
+        createSqlInterfaceHTML,
+        addSqlInterface,
+        clearAllInterfaces,
+        createTableCardHTML,
+        addTableCard,
+        beginSessionRestore,
+        endSessionRestore,
+        ensureOneBlankInterface,
+        resetLastInterfaceId,
+        getLastInterfaceId,
+      } from "./yrSqliteViewer-sql-interface.js";
+
+      import { initializeCodeMirror, getEditor } from "./editor.js";
 
       // Make the imported functions available to the global scope
       window.adjustFontSize = adjustFontSize;
@@ -330,15 +346,15 @@
             queryHistory = [];
             queryInterfaceCount = 0;
             isSessionSaved = true;
-            
+
             // Clear interfaces and reset interface ID
             clearAllInterfaces();
             resetLastInterfaceId();
-            
+
             // Reset table state
             tableNames = [];
             document.getElementById("tableList").innerHTML = "";
-            
+
             // Create first interface
             addSqlInterface(1);
             queryInterfaceCount = 1;
@@ -415,7 +431,6 @@ json.dumps({"tables": table_info})
           // Clear the "no file" message when loading a database
           document.getElementById("noFileMessage").style.display = "none";
           document.getElementById("sqlCommandsHeader").style.display = "block";
-
         } finally {
           // Hide loading message when done (whether successful or not)
           document.getElementById("loadingMessage").style.display = "none";
@@ -434,7 +449,8 @@ json.dumps({"tables": table_info})
         if (!query.trim()) return;
 
         try {
-          const result = await pyodideInstance.runPythonAsync(`
+          const result = await pyodideInstance.runPythonAsync(
+            `
 import sqlite3
 import json
 
@@ -444,7 +460,8 @@ cursor.execute("""${query}""")
 columns = [description[0] for description in cursor.description]
 rows = cursor.fetchall()
 json.dumps({"columns": columns, "rows": rows})
-`.trim());
+`.trim()
+          );
 
           const data = JSON.parse(result);
 
@@ -482,11 +499,13 @@ json.dumps({"columns": columns, "rows": rows})
           isSessionSaved = false;
 
           outputElement.innerHTML = tableHtml;
-          
-          // Update the interface count and ensure one blank interface
-          queryInterfaceCount = Math.max(queryInterfaceCount, parseInt(interfaceId));
-          ensureOneBlankInterface();
 
+          // Update the interface count and ensure one blank interface
+          queryInterfaceCount = Math.max(
+            queryInterfaceCount,
+            parseInt(interfaceId)
+          );
+          ensureOneBlankInterface();
         } catch (error) {
           outputElement.innerHTML = `<div class="yrErrorMessage">Error executing query: ${error.message}</div>`;
         }

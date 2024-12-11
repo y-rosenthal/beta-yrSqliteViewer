@@ -1,5 +1,8 @@
-// Import the getEditor function from the SQL interface module
+/*
 import { getEditor } from './yrSqliteViewer-sql-interface.js';
+*/
+
+import { getEditor } from './editor.js';
 
 // Functions for handling font size adjustments and resizing
 
