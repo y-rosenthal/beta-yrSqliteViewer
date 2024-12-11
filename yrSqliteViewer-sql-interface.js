@@ -1,38 +1,8 @@
 import { initializeCodeMirror, clearEditors, getEditor } from './editor.js';
-/*
-// Store CodeMirror editor instances
-let editors = {};
-*/
 
 let lastInterfaceId = 0;
 let isRestoringSession = false;
 
-/*
-// Initialize a new SQL interface with CodeMirror
-function initializeCodeMirror(elementId) {
-    const editor = CodeMirror(document.getElementById(elementId), {
-        mode: "text/x-sql",
-        theme: "eclipse",
-        lineNumbers: true,
-        lineWrapping: true,
-        viewportMargin: Infinity,
-        placeholder: "Enter SQL query here...",
-        extraKeys: {
-            "Ctrl-Enter": function (cm) {
-                const id = elementId.replace("sqlQuery", "");
-                window.runQuery(id);
-            },
-            "Cmd-Enter": function (cm) {
-                const id = elementId.replace("sqlQuery", "");
-                window.runQuery(id);
-            },
-        },
-    });
-
-    editors[elementId] = editor;
-    return editor;
-}
-*/
 
 // Create HTML for a new SQL interface
 function createSqlInterfaceHTML(interfaceId) {
@@ -120,12 +90,6 @@ function ensureOneBlankInterface() {
     }
 }
 
-/*
-// Get editor instance
-function getEditor(interfaceId) {
-    return editors[`sqlQuery${interfaceId}`];
-}
-*/
 // Clear all SQL interfaces
 function clearAllInterfaces() {
     document.getElementById("queryInterfaces").innerHTML = "";
@@ -192,22 +156,6 @@ function getLastInterfaceId() {
     return lastInterfaceId;
 }
 
-/*
-export {
-    initializeCodeMirror,
-    createSqlInterfaceHTML,
-    addSqlInterface,
-    getEditor,
-    clearAllInterfaces,
-    createTableCardHTML,
-    addTableCard,
-    beginSessionRestore,
-    endSessionRestore,
-    ensureOneBlankInterface,
-    resetLastInterfaceId,
-    getLastInterfaceId
-}; 
-*/
 
 export {
     createSqlInterfaceHTML,
